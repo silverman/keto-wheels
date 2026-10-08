@@ -1,0 +1,208 @@
+/* ============================================================================
+   argento — theme control
+   ----------------------------------------------------------------------------
+   Two independent axes, one button each.
+
+   Theme (light/dark) has three states: follow the OS, or override it either
+   way. Toggling from the "system" state stores the opposite of whatever the OS
+   currently says; toggling again clears the override. Only an explicit choice
+   writes `data-theme` onto <html>, so "system" tracks the OS live.
+
+   Palette (warm/cool) has two: gruvbox is the warm one, tokyo the cool one.
+   There is no OS signal for it, so there is no "system" state — an app ships a
+   default by setting `data-palette` once in its markup, and that default holds
+   until someone actually toggles, at which point the choice is stored and
+   wins. `data-palette` is always written, so a stored "gruvbox" still beats a
+   markup "tokyo".
+
+   Written as plain top-level `export` declarations because scripts/build.mjs
+   mechanically rewrites this file into the classic-script dist/argento.js.
+   ========================================================================== */
+
+export const THEME_STORAGE_KEY = "argento-theme";
+export const THEME_EVENT = "argento:themechange";
+export const THEME_MODES = ["system", "light", "dark"];
+
+let darkQuery;
+
+/* One retained MediaQueryList: a fresh matchMedia() per call can be collected
+   along with its "change" listener, so the toggle would stop tracking the OS. */
+export function prefersDark() {
+  if (!darkQuery) darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  return darkQuery;
+}
+
+export function getSystemTheme() {
+  return prefersDark().matches ? "dark" : "light";
+}
+
+export function getTheme() {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return THEME_MODES.includes(stored) ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+export function getResolvedTheme() {
+  const mode = getTheme();
+  return mode === "system" ? getSystemTheme() : mode;
+}
+
+export function applyTheme() {
+  const mode = getTheme();
+  const resolved = getResolvedTheme();
+  const root = document.documentElement;
+
+  if (mode === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", mode);
+
+  const next = resolved === "dark" ? "light" : "dark";
+  for (const el of document.querySelectorAll("[data-ag-theme-toggle]")) {
+    el.dataset.state = resolved;
+    el.dataset.auto = String(mode === "system");
+    const label =
+      `Switch to ${next} theme` +
+      (mode === "system" ? " (currently following the system)" : "");
+    el.setAttribute("aria-label", label);
+    if (!el.hasAttribute("data-tooltip")) el.title = label;
+  }
+
+  syncMetaThemeColor();
+
+  document.dispatchEvent(
+    new CustomEvent(THEME_EVENT, { detail: { theme: mode, resolved } }),
+  );
+  return resolved;
+}
+
+export function setTheme(mode) {
+  const next = THEME_MODES.includes(mode) ? mode : "system";
+  try {
+    if (next === "system") localStorage.removeItem(THEME_STORAGE_KEY);
+    else localStorage.setItem(THEME_STORAGE_KEY, next);
+  } catch {
+    /* private mode — theme just won't persist */
+  }
+  applyTheme();
+  return next;
+}
+
+/** system → opposite-of-system → system. */
+export function toggleTheme() {
+  if (getTheme() !== "system") return setTheme("system");
+  return setTheme(getSystemTheme() === "dark" ? "light" : "dark");
+}
+
+/** Subscribe to theme changes; returns an unsubscribe function. */
+export function onThemeChange(handler) {
+  const listener = (event) => handler(event.detail);
+  document.addEventListener(THEME_EVENT, listener);
+  return () => document.removeEventListener(THEME_EVENT, listener);
+}
+
+/* ── Palette (warm/cool) ────────────────────────────────────────────────── */
+
+export const PALETTE_STORAGE_KEY = "argento-palette";
+export const PALETTE_EVENT = "argento:palettechange";
+export const PALETTES = ["gruvbox", "tokyo"];
+
+/** gruvbox is ochre and orange, tokyo is blue and violet. */
+export const PALETTE_TEMPERATURE = { gruvbox: "warm", tokyo: "cool" };
+
+/* Read once, before anything here writes the attribute, so that an app that
+   ships <html data-palette="tokyo"> keeps it until someone actually toggles. */
+const markupPalette = (() => {
+  const attr = document.documentElement.getAttribute("data-palette");
+  return PALETTES.includes(attr) ? attr : PALETTES[0];
+})();
+
+export function getPalette() {
+  try {
+    const stored = localStorage.getItem(PALETTE_STORAGE_KEY);
+    return PALETTES.includes(stored) ? stored : markupPalette;
+  } catch {
+    return markupPalette;
+  }
+}
+
+export function getOtherPalette() {
+  return PALETTES.find((name) => name !== getPalette());
+}
+
+export function applyPalette() {
+  const palette = getPalette();
+  document.documentElement.setAttribute("data-palette", palette);
+
+  const next = PALETTES.find((name) => name !== palette);
+  for (const el of document.querySelectorAll("[data-ag-palette-toggle]")) {
+    el.dataset.state = PALETTE_TEMPERATURE[palette];
+    const label = `Switch to the ${PALETTE_TEMPERATURE[next]} palette`;
+    el.setAttribute("aria-label", label);
+    if (!el.hasAttribute("data-tooltip")) el.title = label;
+  }
+
+  syncMetaThemeColor();
+  document.dispatchEvent(new CustomEvent(PALETTE_EVENT, { detail: { palette } }));
+  return palette;
+}
+
+export function setPalette(name) {
+  const next = PALETTES.includes(name) ? name : markupPalette;
+  try {
+    localStorage.setItem(PALETTE_STORAGE_KEY, next);
+  } catch {
+    /* private mode — palette just won't persist */
+  }
+  applyPalette();
+  return next;
+}
+
+export function togglePalette() {
+  return setPalette(getOtherPalette());
+}
+
+/** Subscribe to palette changes; returns an unsubscribe function. */
+export function onPaletteChange(handler) {
+  const listener = (event) => handler(event.detail);
+  document.addEventListener(PALETTE_EVENT, listener);
+  return () => document.removeEventListener(PALETTE_EVENT, listener);
+}
+
+/* Pico paints the page background on <html>, not <body>; re-read it whenever
+   the theme changes what that background resolves to. */
+function syncMetaThemeColor() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", getComputedStyle(document.documentElement).backgroundColor);
+  }
+}
+
+export function initTheme() {
+  prefersDark().addEventListener("change", () => {
+    // Repaint on OS change so the icon keeps showing the theme actually in use.
+    if (getTheme() === "system") applyTheme();
+  });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === THEME_STORAGE_KEY) applyTheme();
+    if (event.key === PALETTE_STORAGE_KEY) applyPalette();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest?.("[data-ag-theme-toggle]")) toggleTheme();
+    else if (event.target.closest?.("[data-ag-palette-toggle]")) togglePalette();
+  });
+
+  applyPalette();
+  return applyTheme();
+}
+
+/** Inline in <head> before the stylesheet to avoid a flash of the wrong theme. */
+export const NO_FLASH_SNIPPET =
+  "try{var r=document.documentElement," +
+  "t=localStorage.getItem('argento-theme')," +
+  "p=localStorage.getItem('argento-palette');" +
+  "if(t==='light'||t==='dark')r.setAttribute('data-theme',t);" +
+  "if(p==='gruvbox'||p==='tokyo')r.setAttribute('data-palette',p)}catch(e){}";
