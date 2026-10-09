@@ -11,8 +11,9 @@
 </head>
 <body class="ag-app">
 
-<header class="ag-appbar">
+<header class="ag-appbar ag-sticky">
   <h1 class="ag-brand">keto wheels <small>vegetarian meal randomizer</small></h1>
+  <button id="spin" type="button">spin</button>
   <span class="ag-spacer"></span>
   <div class="ag-input-group">
     <button class="ag-icon-btn ag-theme-toggle" data-ag-theme-toggle type="button" aria-label="toggle light and dark">
@@ -27,15 +28,10 @@
 </header>
 
 <main class="wrap">
-  <div class="controls">
-    <button id="spin" type="button">spin</button>
-    <small>or press space</small>
-  </div>
-
   <section class="reels" id="reels" aria-label="wheels"></section>
 
   <section class="result" aria-live="polite" aria-labelledby="result-h">
-    <h2 id="result-h" class="idle">spin to get a meal proposal.</h2>
+    <h2 id="result-h" class="idle">spin to get a meal proposal</h2>
     <p id="result-sub" hidden></p>
   </section>
 
