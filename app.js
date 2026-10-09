@@ -1,8 +1,8 @@
 (function () {
   var DATA = [
     { key: "protein", label: "protein", items: ["eggs", "extra-firm tofu", "tempeh", "halloumi", "paneer", "cottage cheese", "seitan", "edamame"] },
-    { key: "veg", label: "vegetable", items: ["asparagus", "brussels sprouts", "spinach", "zucchini", "cauliflower", "broccoli", "kale", "green beans", "mushrooms", "bok choy"] },
-    { key: "fat", label: "fat", items: ["avocado", "cheddar", "olive oil", "butter", "feta", "walnuts", "coconut cream", "pesto", "almonds", "tahini"] }
+    { key: "veg", label: "vegetable", items: ["asparagus", "brussels sprouts", "spinach", "cauliflower", "broccoli", "kale", "green beans", "mushrooms", "bok choy"] },
+    { key: "fat", label: "fat", items: ["avocado", "cheddar", "feta", "coconut cream", "pesto", "almonds", "tahini"] }
   ];
   // reduced-motion users still get a short roll (it is the only cue that a spin happened), just calmer
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
