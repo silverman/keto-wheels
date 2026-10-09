@@ -64,7 +64,7 @@
     r.track.replaceChildren.apply(r.track, seq.map(function (t) { return cell(t, false); }));
     r.current = target;
     if (!canAnimate) return Promise.resolve();
-    var dist = (seq.length - 1) * r.win.offsetWidth;
+    var dist = (seq.length - 1) * r.win.clientWidth;
     r.anim = r.track.animate(
       [{ transform: "translateX(0)" }, { transform: "translateX(" + (-dist) + "px)" }],
       { duration: duration * 1000, easing: "cubic-bezier(.25,.6,.3,1)", fill: "forwards" }
